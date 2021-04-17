@@ -73,7 +73,7 @@ void setup() {
   bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
   bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
   bmp.setOutputDataRate(BMP3_ODR_50_HZ);
-
+  printCSVHeader();
 }
 
 // Here is where you define the sensor outputs you want to receive
@@ -181,7 +181,7 @@ void reportIMU(void){
 void readIMU(void) {
 
   if (bno08x.wasReset()) {
-    Serial.print("sensor was reset ");
+    //Serial.print("sensor was reset ");
     setReports();
   }
 
@@ -287,7 +287,7 @@ void readIMU(void) {
 }
 
 void readAndReportTime(void) {
-  // TODO <<<>>>
+  Time = millis() / 1000.0;
   Serial.print(Time);
   Serial.print(", ");
 }
