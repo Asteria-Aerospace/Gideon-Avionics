@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <Wire.h>
-//#include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP3XX.h"
 #include <Adafruit_BNO08x.h>
@@ -37,6 +36,8 @@ sh2_SensorValue_t sensorValue;
 
 // instantiate program object for BMP sensor on I2C bus
 Adafruit_BMP3XX bmp;
+
+double Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK;
 
 // set up devices
 void setup() {
@@ -116,7 +117,68 @@ void setReports(void) {
 //  }
 }
 
-void readAndReportIMU(void) {
+void printCSVHeader (void){
+  Serial.print("Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK");
+}
+
+void reportIMU(void){
+    Serial.print(AccelX);
+    Serial.print(", ");
+    Serial.print(AccelY);
+    Serial.print(", ");
+    Serial.print(AccelZ);
+    Serial.print(", ");
+    Serial.print(GyroX);
+    Serial.print(", ");
+    Serial.print(GyroY);
+    Serial.print(", ");
+    Serial.print(GyroZ);
+    Serial.print(", ");
+    Serial.print(MagX);
+    Serial.print(", ");
+    Serial.print(MagY);
+    Serial.print(", ");
+    Serial.print(MagZ);
+    Serial.print(", ");
+    Serial.print(LAccX);
+    Serial.print(", ");
+    Serial.print(LAccY);
+    Serial.print(", ");
+    Serial.print(LAccZ);
+    Serial.print(", ");
+    Serial.print(GravX);
+    Serial.print(", ");
+    Serial.print(GravY);
+    Serial.print(", ");
+    Serial.print(GravZ);
+    Serial.print(", ");
+    Serial.print(RotTheta);
+    Serial.print(", ");
+    Serial.print(RotI);
+    Serial.print(", ");
+    Serial.print(RotJ);
+    Serial.print(", ");
+    Serial.print(RotK);
+    Serial.print(", ");
+    Serial.print(GeoRotTheta);
+    Serial.print(", ");
+    Serial.print(GeoRotI);
+    Serial.print(", ");
+    Serial.print(GeoRotJ);
+    Serial.print(", ");
+    Serial.print(GeoRotK);
+    Serial.print(", ");
+    Serial.print(GameRotTheta);
+    Serial.print(", ");
+    Serial.print(GameRotI);
+    Serial.print(", ");
+    Serial.print(GameRotJ);
+    Serial.print(", ");
+    Serial.print(GameRotK);
+    Serial.print(", ");
+}
+
+void readIMU(void) {
 
   if (bno08x.wasReset()) {
     Serial.print("sensor was reset ");
@@ -127,78 +189,51 @@ void readAndReportIMU(void) {
     return;
   }
 
+// GameRotTheta, GameRotI, GameRotJ, GameRotK 
   switch (sensorValue.sensorId) {
 
   case SH2_ACCELEROMETER:
-    Serial.print("Accelerometer - x: ");
-    Serial.print(sensorValue.un.accelerometer.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.accelerometer.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.accelerometer.z);
+    AccelX = sensorValue.un.accelerometer.x;
+    AccelY = sensorValue.un.accelerometer.y;
+    AccelZ = sensorValue.un.accelerometer.z;
     break;
   case SH2_GYROSCOPE_CALIBRATED:
-    Serial.print("Gyro - x: ");
-    Serial.print(sensorValue.un.gyroscope.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.gyroscope.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.gyroscope.z);
+    GyroX = sensorValue.un.gyroscope.x;
+    GyroY = sensorValue.un.gyroscope.y;
+    GyroZ = sensorValue.un.gyroscope.z;
     break;
   case SH2_MAGNETIC_FIELD_CALIBRATED:
-    Serial.print("Magnetic Field - x: ");
-    Serial.print(sensorValue.un.magneticField.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.magneticField.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.magneticField.z);
+    MagX = sensorValue.un.magneticField.x;
+    MagY = sensorValue.un.magneticField.y;
+    MagZ = sensorValue.un.magneticField.z;
     break;
   case SH2_LINEAR_ACCELERATION:
-    Serial.print("Linear Acceration - x: ");
-    Serial.print(sensorValue.un.linearAcceleration.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.linearAcceleration.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.linearAcceleration.z);
+    LAccX = sensorValue.un.linearAcceleration.x;
+    LAccY = sensorValue.un.linearAcceleration.y;
+    LAccZ = sensorValue.un.linearAcceleration.z;
     break;
   case SH2_GRAVITY:
-    Serial.print("Gravity - x: ");
-    Serial.print(sensorValue.un.gravity.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.gravity.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.gravity.z);
+    GravX = sensorValue.un.gravity.x;
+    GravY = sensorValue.un.gravity.y;
+    GravZ = sensorValue.un.gravity.z;
     break;
   case SH2_ROTATION_VECTOR:
-    Serial.print("Rotation Vector - r: ");
-    Serial.print(sensorValue.un.rotationVector.real);
-    Serial.print(" i: ");
-    Serial.print(sensorValue.un.rotationVector.i);
-    Serial.print(" j: ");
-    Serial.print(sensorValue.un.rotationVector.j);
-    Serial.print(" k: ");
-    Serial.println(sensorValue.un.rotationVector.k);
+    RotTheta = sensorValue.un.rotationVector.real;
+    RotI = sensorValue.un.rotationVector.i;
+    RotJ = sensorValue.un.rotationVector.j;
+    RotK = sensorValue.un.rotationVector.k;
     break;
   case SH2_GEOMAGNETIC_ROTATION_VECTOR:
-    Serial.print("Geo-Magnetic Rotation Vector - r: ");
-    Serial.print(sensorValue.un.geoMagRotationVector.real);
-    Serial.print(" i: ");
-    Serial.print(sensorValue.un.geoMagRotationVector.i);
-    Serial.print(" j: ");
-    Serial.print(sensorValue.un.geoMagRotationVector.j);
-    Serial.print(" k: ");
-    Serial.println(sensorValue.un.geoMagRotationVector.k);
+    GeoRotTheta = sensorValue.un.geoMagRotationVector.real;
+    GeoRotI = sensorValue.un.geoMagRotationVector.i;
+    GeoRotJ = sensorValue.un.geoMagRotationVector.j;
+    GeoRotK = sensorValue.un.geoMagRotationVector.k;
     break;
-
   case SH2_GAME_ROTATION_VECTOR:
-    Serial.print("Game Rotation Vector - r: ");
-    Serial.print(sensorValue.un.gameRotationVector.real);
-    Serial.print(" i: ");
-    Serial.print(sensorValue.un.gameRotationVector.i);
-    Serial.print(" j: ");
-    Serial.print(sensorValue.un.gameRotationVector.j);
-    Serial.print(" k: ");
-    Serial.println(sensorValue.un.gameRotationVector.k);
+    GameRotTheta = sensorValue.un.gameRotationVector.real;
+    GameRotI = sensorValue.un.gameRotationVector.i;
+    GameRotJ = sensorValue.un.gameRotationVector.j;
+    GameRotK = sensorValue.un.gameRotationVector.k;
     break;
 
 //  case SH2_STABILITY_CLASSIFIER: {
@@ -223,65 +258,99 @@ void readAndReportIMU(void) {
 //    }
 //    break;
 //  }
-
-  case SH2_RAW_ACCELEROMETER:
-    Serial.print("Raw Accelerometer - x: ");
-    Serial.print(sensorValue.un.rawAccelerometer.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.rawAccelerometer.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.rawAccelerometer.z);
-    break;
-  case SH2_RAW_GYROSCOPE:
-    Serial.print("Raw Gyro - x: ");
-    Serial.print(sensorValue.un.rawGyroscope.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.rawGyroscope.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.rawGyroscope.z);
-    break;
-  case SH2_RAW_MAGNETOMETER:
-    Serial.print("Raw Magnetic Field - x: ");
-    Serial.print(sensorValue.un.rawMagnetometer.x);
-    Serial.print(" y: ");
-    Serial.print(sensorValue.un.rawMagnetometer.y);
-    Serial.print(" z: ");
-    Serial.println(sensorValue.un.rawMagnetometer.z);
-    break;
+//
+//  case SH2_RAW_ACCELEROMETER:
+//    Serial.print("Raw Accelerometer - x: ");
+//    Serial.print(sensorValue.un.rawAccelerometer.x);
+//    Serial.print(" y: ");
+//    Serial.print(sensorValue.un.rawAccelerometer.y);
+//    Serial.print(" z: ");
+//    Serial.println(sensorValue.un.rawAccelerometer.z);
+//    break;
+//  case SH2_RAW_GYROSCOPE:
+//    Serial.print("Raw Gyro - x: ");
+//    Serial.print(sensorValue.un.rawGyroscope.x);
+//    Serial.print(" y: ");
+//    Serial.print(sensorValue.un.rawGyroscope.y);
+//    Serial.print(" z: ");
+//    Serial.println(sensorValue.un.rawGyroscope.z);
+//    break;
+//  case SH2_RAW_MAGNETOMETER:
+//    Serial.print("Raw Magnetic Field - x: ");
+//    Serial.print(sensorValue.un.rawMagnetometer.x);
+//    Serial.print(" y: ");
+//    Serial.print(sensorValue.un.rawMagnetometer.y);
+//    Serial.print(" z: ");
+//    Serial.println(sensorValue.un.rawMagnetometer.z);
+//    break;
   }
 }
 
-void readAndReportBMP(void){
+void readAndReportTime(void) {
+  // TODO <<<>>>
+  Serial.print(Time);
+  Serial.print(", ");
+}
+
+void reportBMP(void){
+  // Raw Pressure reading
+  Serial.print(Baro);
+  Serial.print(", ");
+
+  // Celsius
+  Serial.print(TempC);
+  Serial.print(", ");
+
+  // Farenheit
+  Serial.print(TempF);
+  Serial.print(", ");
+
+  // Barometric Calibration value
+  Serial.print(BaroCal);
+  Serial.print(", ");
+
+  // Altitude Meters
+  Serial.print(AltiM);
+  Serial.print(", ");
+
+  // Altitude Feet
+  Serial.print(AltiF);
+  Serial.print(", ");
+
+}
+
+void readBMP(void){
     if (! bmp.performReading()) {
-    Serial.println("Failed to perform reading :(");
+    Serial.println("Failed to perform reading.");
     return;
   }
 
-  // Print data to serial port
-  Serial.print("Temperature = ");
-  Serial.print(bmp.temperature);
-  Serial.print(" *C");
-  Serial.print(" (");
-  Serial.print((bmp.temperature * 9/5) + 32);
-  Serial.println("F)");
+  // Store data to temp variables
 
-  Serial.print("Pressure = ");
-  Serial.print(bmp.pressure / 100.0);
-  Serial.println(" hPa");
+  // Raw Pressure reading
+  Baro = bmp.pressure / 100.0;
 
-  Serial.print("Approx. Altitude = ");
-  Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA));
-  Serial.print(" m");
-  Serial.print(" (");
-  Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA) * 3.28084);
-  Serial.println("ft)");
+  // Celsius
+  TempC = bmp.temperature;
 
-  Serial.println();
+  // Farenheit
+  TempF = ( bmp.temperature * 9/5) + 32;
+
+  AltiM = bmp.readAltitude(SEALEVELPRESSURE_HPA);
+
+  AltiF = bmp.readAltitude(SEALEVELPRESSURE_HPA) * 3.28084;
 }
 
 void loop() {
-  readAndReportIMU();
-  //readAndReportBMP();
+  readBMP();
+  readIMU();
+
+  // print a CSV row
+  readAndReportTime();
+  reportBMP();
+  reportIMU();
+  Serial.println(""); // new line
+  
   
   delay(20);
 }
