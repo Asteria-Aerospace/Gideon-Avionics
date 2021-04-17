@@ -19,7 +19,12 @@
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP3XX.h"
 #include <Adafruit_BNO08x.h>
+#include <SPI.h>
+#include <SD.h>
 
+// Config for SD card
+const int chipSelect = 4;
+unsigned long lastFlushTimeMilliseconds = 0, flushRateMilliseconds = (5 * 1000); // five seconds
 
 // Config for Barometric pressure/temp sensor
 #define SEALEVELPRESSURE_HPA (1013.25)
@@ -37,7 +42,24 @@ sh2_SensorValue_t sensorValue;
 // instantiate program object for BMP sensor on I2C bus
 Adafruit_BMP3XX bmp;
 
+// These variables accumulate the most current data as it arrives, for later reporting
 double Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK;
+
+File dataLogFile;
+
+// setup SD card IO
+void setupSD(void) {
+  Serial.print("Initializing SD card...");
+
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+  }
+  else {
+    Serial.println("card initialized.");
+    dataLogFile = SD.open("datalog.csv", FILE_WRITE);
+  }
+}
 
 // set up devices
 void setup() {
@@ -67,13 +89,19 @@ void setup() {
     Serial.println("Could not find a valid BMP3 sensor, check wiring!");
     while (1);
   }
-    
+
+  // set up data logging to SD card
+  setupSD();
+
   // Set up BMP with oversampling and filter initialization
   bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
   bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
   bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
   bmp.setOutputDataRate(BMP3_ODR_50_HZ);
-  printCSVHeader();
+  printCSVHeader(Serial);
+  if(dataLogFile) {
+    printCSVHeader(dataLogFile);
+  }
 }
 
 // Here is where you define the sensor outputs you want to receive
@@ -117,65 +145,65 @@ void setReports(void) {
 //  }
 }
 
-void printCSVHeader (void){
-  Serial.print("Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK");
+void printCSVHeader (Stream& outputFile){
+  outputFile.print("Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK");
 }
 
-void reportIMU(void){
-    Serial.print(AccelX);
-    Serial.print(", ");
-    Serial.print(AccelY);
-    Serial.print(", ");
-    Serial.print(AccelZ);
-    Serial.print(", ");
-    Serial.print(GyroX);
-    Serial.print(", ");
-    Serial.print(GyroY);
-    Serial.print(", ");
-    Serial.print(GyroZ);
-    Serial.print(", ");
-    Serial.print(MagX);
-    Serial.print(", ");
-    Serial.print(MagY);
-    Serial.print(", ");
-    Serial.print(MagZ);
-    Serial.print(", ");
-    Serial.print(LAccX);
-    Serial.print(", ");
-    Serial.print(LAccY);
-    Serial.print(", ");
-    Serial.print(LAccZ);
-    Serial.print(", ");
-    Serial.print(GravX);
-    Serial.print(", ");
-    Serial.print(GravY);
-    Serial.print(", ");
-    Serial.print(GravZ);
-    Serial.print(", ");
-    Serial.print(RotTheta);
-    Serial.print(", ");
-    Serial.print(RotI);
-    Serial.print(", ");
-    Serial.print(RotJ);
-    Serial.print(", ");
-    Serial.print(RotK);
-    Serial.print(", ");
-    Serial.print(GeoRotTheta);
-    Serial.print(", ");
-    Serial.print(GeoRotI);
-    Serial.print(", ");
-    Serial.print(GeoRotJ);
-    Serial.print(", ");
-    Serial.print(GeoRotK);
-    Serial.print(", ");
-    Serial.print(GameRotTheta);
-    Serial.print(", ");
-    Serial.print(GameRotI);
-    Serial.print(", ");
-    Serial.print(GameRotJ);
-    Serial.print(", ");
-    Serial.print(GameRotK);
-    Serial.print(", ");
+void reportIMU(Stream& outputFile){
+    outputFile.print(AccelX);
+    outputFile.print(", ");
+    outputFile.print(AccelY);
+    outputFile.print(", ");
+    outputFile.print(AccelZ);
+    outputFile.print(", ");
+    outputFile.print(GyroX);
+    outputFile.print(", ");
+    outputFile.print(GyroY);
+    outputFile.print(", ");
+    outputFile.print(GyroZ);
+    outputFile.print(", ");
+    outputFile.print(MagX);
+    outputFile.print(", ");
+    outputFile.print(MagY);
+    outputFile.print(", ");
+    outputFile.print(MagZ);
+    outputFile.print(", ");
+    outputFile.print(LAccX);
+    outputFile.print(", ");
+    outputFile.print(LAccY);
+    outputFile.print(", ");
+    outputFile.print(LAccZ);
+    outputFile.print(", ");
+    outputFile.print(GravX);
+    outputFile.print(", ");
+    outputFile.print(GravY);
+    outputFile.print(", ");
+    outputFile.print(GravZ);
+    outputFile.print(", ");
+    outputFile.print(RotTheta);
+    outputFile.print(", ");
+    outputFile.print(RotI);
+    outputFile.print(", ");
+    outputFile.print(RotJ);
+    outputFile.print(", ");
+    outputFile.print(RotK);
+    outputFile.print(", ");
+    outputFile.print(GeoRotTheta);
+    outputFile.print(", ");
+    outputFile.print(GeoRotI);
+    outputFile.print(", ");
+    outputFile.print(GeoRotJ);
+    outputFile.print(", ");
+    outputFile.print(GeoRotK);
+    outputFile.print(", ");
+    outputFile.print(GameRotTheta);
+    outputFile.print(", ");
+    outputFile.print(GameRotI);
+    outputFile.print(", ");
+    outputFile.print(GameRotJ);
+    outputFile.print(", ");
+    outputFile.print(GameRotK);
+    outputFile.print(", ");
 }
 
 void readIMU(void) {
@@ -286,36 +314,36 @@ void readIMU(void) {
   }
 }
 
-void readAndReportTime(void) {
+void readAndReportTime(Stream& outputFile) {
   Time = millis() / 1000.0;
-  Serial.print(Time);
-  Serial.print(", ");
+  outputFile.print(Time);
+  outputFile.print(", ");
 }
 
-void reportBMP(void){
+void reportBMP(Stream&outputFile){
   // Raw Pressure reading
-  Serial.print(Baro);
-  Serial.print(", ");
+  outputFile.print(Baro);
+  outputFile.print(", ");
 
   // Celsius
-  Serial.print(TempC);
-  Serial.print(", ");
+  outputFile.print(TempC);
+  outputFile.print(", ");
 
   // Farenheit
-  Serial.print(TempF);
-  Serial.print(", ");
+  outputFile.print(TempF);
+  outputFile.print(", ");
 
   // Barometric Calibration value
-  Serial.print(BaroCal);
-  Serial.print(", ");
+  outputFile.print(BaroCal);
+  outputFile.print(", ");
 
   // Altitude Meters
-  Serial.print(AltiM);
-  Serial.print(", ");
+  outputFile.print(AltiM);
+  outputFile.print(", ");
 
   // Altitude Feet
-  Serial.print(AltiF);
-  Serial.print(", ");
+  outputFile.print(AltiF);
+  outputFile.print(", ");
 
 }
 
@@ -345,12 +373,26 @@ void loop() {
   readBMP();
   readIMU();
 
-  // print a CSV row
-  readAndReportTime();
-  reportBMP();
-  reportIMU();
-  Serial.println(""); // new line
+  // print a CSV row to file
+  if(dataLogFile) {
+    readAndReportTime(dataLogFile);
+    reportBMP(dataLogFile);
+    reportIMU(dataLogFile);
+    dataLogFile.println(""); // new line
+  }
   
+  // print a CSV row to Serial
+  readAndReportTime(Serial);
+  reportBMP(Serial);
+  reportIMU(Serial);
+  Serial.println(""); // new line
+
+  // is it time to flush the writes to the SD card yet?
+  unsigned long nowMillis = millis();
+  if(nowMillis > lastFlushTimeMilliseconds + flushRateMilliseconds) {
+    dataLogFile.flush();
+    lastFlushTimeMilliseconds = nowMillis;
+  }
   
   delay(20);
 }
