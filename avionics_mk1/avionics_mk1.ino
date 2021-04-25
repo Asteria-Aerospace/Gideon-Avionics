@@ -15,6 +15,8 @@
   BSD license, all text above must be included in any redistribution
  ***************************************************************************/
 
+#define SERIAL_DEBUG 1
+
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP3XX.h"
@@ -49,28 +51,36 @@ File dataLogFile;
 
 // setup SD card IO
 void setupSD(void) {
+#ifdef SERIAL_DEBUG
   Serial.print("Initializing SD card...");
+#endif
 
   // see if the card is present and can be initialized:
   if (!SD.begin(chipSelect)) {
+#ifdef SERIAL_DEBUG
     Serial.println("Card failed, or not present");
+#endif
   }
   else {
     char newfilename[50];
-    sprintf(newfilename, "datalog%04d.csv", millis());
+    sprintf(newfilename, "%04d.csv", millis());
     dataLogFile = SD.open(newfilename, FILE_WRITE);
+#ifdef SERIAL_DEBUG
     Serial.println("card initialized. Filename:");
     Serial.println(newfilename);
+#endif
   }
 }
 
 // set up devices
 void setup() {
+#ifdef SERIAL_DEBUG
   // Set up serial port for debugging
   Serial.begin(115200); // set up serial port for debugging
-  //while (!Serial);  // wait for serial access object to be ready
   delay(10000); // don't spinlock waiting for serial in case it's not connected
+  //while (!Serial);  // wait for serial access object to be ready
   Serial.println("AsteriaAerospace.com 'Discovery' Avionics Data Logger");
+#endif
 
   // Set LED pins to output for debugging/status
   pinMode(RED_LED_PORT, OUTPUT);
@@ -80,17 +90,23 @@ void setup() {
   digitalWrite(GREEN_LED_PORT, LOW);   
   digitalWrite(RED_LED_PORT, LOW);  
 
- // Initialize BNO08X!
+ // Initialize BNO08X
   if (!bno08x.begin_I2C()) {
+#ifdef SERIAL_DEBUG
     Serial.println("Failed to find BNO08x chip");
+#endif
     while (1) {
       delay(10);
     } // while
   }
+#ifdef SERIAL_DEBUG
   Serial.println("BNO08x Found!");
+#endif
   setReports(); // Chose what data we want to recieve from IMU
   if (!bmp.begin_I2C()) {   // hardware I2C mode, can pass in address & alt Wire
+#ifdef SERIAL_DEBUG
     Serial.println("Could not find a valid BMP3 sensor, check wiring!");
+#endif
     while (1);
   }
 
@@ -102,7 +118,9 @@ void setup() {
   bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
   bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
   bmp.setOutputDataRate(BMP3_ODR_50_HZ);
+#ifdef SERIAL_DEBUG
   printCSVHeader(Serial);
+#endif
   if(dataLogFile) {
     printCSVHeader(dataLogFile);
     digitalWrite(GREEN_LED_PORT, HIGH); // indicate we're writing data
@@ -111,43 +129,69 @@ void setup() {
 
 // Here is where you define the sensor outputs you want to receive
 void setReports(void) {
+#ifdef SERIAL_DEBUG
   Serial.println("Setting desired reports");
+#endif
   if (!bno08x.enableReport(SH2_ACCELEROMETER)) {
+#ifdef SERIAL_DEBUG
     Serial.println("Could not enable accelerometer");
+#endif
   }
-//  if (!bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED)) {
-//    Serial.println("Could not enable gyroscope");
-//  }
-//  if (!bno08x.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED)) {
-//    Serial.println("Could not enable magnetic field calibrated");
-//  }
-//  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION)) {
-//    Serial.println("Could not enable linear acceleration");
-//  }
-//  if (!bno08x.enableReport(SH2_GRAVITY)) {
-//    Serial.println("Could not enable gravity vector");
-//  }
-//  if (!bno08x.enableReport(SH2_ROTATION_VECTOR)) {
-//    Serial.println("Could not enable rotation vector");
-//  }
-//  if (!bno08x.enableReport(SH2_GEOMAGNETIC_ROTATION_VECTOR)) {
-//    Serial.println("Could not enable geomagnetic rotation vector");
-//  }
-//  if (!bno08x.enableReport(SH2_GAME_ROTATION_VECTOR)) {
-//    Serial.println("Could not enable game rotation vector");
-//  }
-//  // if (!bno08x.enableReport(SH2_STABILITY_CLASSIFIER)) {
-//  //  Serial.println("Could not enable stability classifier");
-//  // }
-//  if (!bno08x.enableReport(SH2_RAW_ACCELEROMETER)) {
-//    Serial.println("Could not enable raw accelerometer");
-//  }
-//  if (!bno08x.enableReport(SH2_RAW_GYROSCOPE)) {
-//    Serial.println("Could not enable raw gyroscope");
-//  }
-//  if (!bno08x.enableReport(SH2_RAW_MAGNETOMETER)) {
-//    Serial.println("Could not enable raw magnetometer");
-//  }
+  if (!bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable gyroscope");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable magnetic field calibrated");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable linear acceleration");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_GRAVITY)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable gravity vector");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_ROTATION_VECTOR)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable rotation vector");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_GEOMAGNETIC_ROTATION_VECTOR)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable geomagnetic rotation vector");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_GAME_ROTATION_VECTOR)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable game rotation vector");
+#endif
+  }
+  // if (!bno08x.enableReport(SH2_STABILITY_CLASSIFIER)) {
+#ifdef SERIAL_DEBUG
+  //  Serial.println("Could not enable stability classifier");
+#endif
+  // }
+  if (!bno08x.enableReport(SH2_RAW_ACCELEROMETER)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable raw accelerometer");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_RAW_GYROSCOPE)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable raw gyroscope");
+#endif
+  }
+  if (!bno08x.enableReport(SH2_RAW_MAGNETOMETER)) {
+#ifdef SERIAL_DEBUG
+    Serial.println("Could not enable raw magnetometer");
+#endif
+  }
 }
 
 void printCSVHeader (Stream& outputFile){
@@ -214,7 +258,9 @@ void reportIMU(Stream& outputFile){
 void readIMU(void) {
 
   if (bno08x.wasReset()) {
+#ifdef SERIAL_DEBUG
     //Serial.print("sensor was reset ");
+#endif
     setReports();
   }
 
@@ -354,7 +400,9 @@ void reportBMP(Stream&outputFile){
 
 void readBMP(void){
     if (! bmp.performReading()) {
+#ifdef SERIAL_DEBUG
     Serial.println("Failed to perform reading.");
+#endif
     return;
   }
 
@@ -386,11 +434,13 @@ void loop() {
     dataLogFile.println(""); // new line
   }
   
+#ifdef SERIAL_DEBUG
   // print a CSV row to Serial
   readAndReportTime(Serial);
   reportBMP(Serial);
   reportIMU(Serial);
   Serial.println(""); // new line
+#endif
 
   // is it time to flush the writes to the SD card yet?
   unsigned long nowMillis = millis();
@@ -401,5 +451,5 @@ void loop() {
     lastFlushTimeMilliseconds = nowMillis;
   }
   
-  delay(20);
+  delay(20); // 50Hz
 }
