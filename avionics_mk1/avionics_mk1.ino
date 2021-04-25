@@ -56,8 +56,11 @@ void setupSD(void) {
     Serial.println("Card failed, or not present");
   }
   else {
-    Serial.println("card initialized.");
-    dataLogFile = SD.open("datalog.csv", FILE_WRITE);
+    char newfilename[50];
+    sprintf(newfilename, "datalog%04d.csv", millis());
+    dataLogFile = SD.open(newfilename, FILE_WRITE);
+    Serial.println("card initialized. Filename:");
+    Serial.println(newfilename);
   }
 }
 
@@ -65,7 +68,8 @@ void setupSD(void) {
 void setup() {
   // Set up serial port for debugging
   Serial.begin(115200); // set up serial port for debugging
-  while (!Serial);  // wait for serial access object to be ready
+  //while (!Serial);  // wait for serial access object to be ready
+  delay(10000); // don't spinlock waiting for serial in case it's not connected
   Serial.println("AsteriaAerospace.com 'Discovery' Avionics Data Logger");
 
   // Set LED pins to output for debugging/status
@@ -101,6 +105,7 @@ void setup() {
   printCSVHeader(Serial);
   if(dataLogFile) {
     printCSVHeader(dataLogFile);
+    digitalWrite(GREEN_LED_PORT, HIGH); // indicate we're writing data
   }
 }
 
@@ -390,7 +395,9 @@ void loop() {
   // is it time to flush the writes to the SD card yet?
   unsigned long nowMillis = millis();
   if(nowMillis > lastFlushTimeMilliseconds + flushRateMilliseconds) {
+    digitalWrite(RED_LED_PORT, HIGH);
     dataLogFile.flush();
+    digitalWrite(RED_LED_PORT, LOW);
     lastFlushTimeMilliseconds = nowMillis;
   }
   
