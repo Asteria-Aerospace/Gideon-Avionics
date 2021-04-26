@@ -15,7 +15,7 @@
   BSD license, all text above must be included in any redistribution
  ***************************************************************************/
 
-#define SERIAL_DEBUG 1
+#define SERIAL_DEBUG 0
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
