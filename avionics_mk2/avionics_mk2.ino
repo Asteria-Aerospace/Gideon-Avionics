@@ -1,40 +1,26 @@
-/***************************************************************************
-  This is a library for the BMP3XX temperature & pressure sensor
+// Asteria Aerospace Gideon Mk2 Arduino Feather M0 Avionics stack
 
-  Designed specifically to work with the Adafruit BMP388 Breakout
-  ----> http://www.adafruit.com/products/3966
-
-  These sensors use I2C or SPI to communicate, 2 or 4 pins are required
-  to interface.
-
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing products
-  from Adafruit!
-
-  Written by Limor Fried & Kevin Townsend for Adafruit Industries.
-  BSD license, all text above must be included in any redistribution
- ***************************************************************************/
-
+// enable this to stream telemetry data to serial/USB.
+// This is blocking and will stall operations if no USB/serial
+// receiver is listening.
 #define SERIAL_DEBUG 0
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BMP3XX.h"
-#include <Adafruit_BNO08x.h>
+#include <Adafruit_H3LIS331.h>
+#include <Adafruit_Sensor.h>
 #include <SPI.h>
 #include <SD.h>
 
 // Config for SD card
-const int chipSelect = 4;
+const int chipSelect = 4; // SD card SPI Chip Select is port 4, make sure this doesn't conflict with other SPI devices
 unsigned long lastFlushTimeMilliseconds = 0, flushRateMilliseconds = (5 * 1000); // five seconds
 
 // Config for Barometric pressure/temp sensor
 #define SEALEVELPRESSURE_HPA (1013.25)
-// Config for BNO08X IMU
-#define BNO08X_RESET -1
 
-Adafruit_BNO08x bno08x(BNO08X_RESET);
-sh2_SensorValue_t sensorValue;
+Adafruit_H3LIS331 lis = Adafruit_H3LIS331();
 
 
 // Config for diagnostic LEDs
@@ -45,7 +31,7 @@ sh2_SensorValue_t sensorValue;
 Adafruit_BMP3XX bmp;
 
 // These variables accumulate the most current data as it arrives, for later reporting
-double Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK;
+double Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ;
 
 File dataLogFile;
 
@@ -79,7 +65,7 @@ void setup() {
   Serial.begin(115200); // set up serial port for debugging
   delay(10000); // don't spinlock waiting for serial in case it's not connected
   //while (!Serial);  // wait for serial access object to be ready
-  Serial.println("AsteriaAerospace.com 'Discovery' Avionics Data Logger");
+  Serial.println("AsteriaAerospace.com 'Gideon Mk 2' Avionics Data Logger");
 #endif
 
   // Set LED pins to output for debugging/status
@@ -87,22 +73,26 @@ void setup() {
   pinMode(GREEN_LED_PORT, OUTPUT);
 
   // Turn both LEDs off to start
-  digitalWrite(GREEN_LED_PORT, LOW);   
-  digitalWrite(RED_LED_PORT, LOW);  
+  digitalWrite(GREEN_LED_PORT, LOW);
+  digitalWrite(RED_LED_PORT, LOW);
 
- // Initialize BNO08X
-  if (!bno08x.begin_I2C()) {
+  // Initialize IMU
+  if (!lis.begin_I2C()) {
 #ifdef SERIAL_DEBUG
-    Serial.println("Failed to find BNO08x chip");
+    Serial.println("Failed to find LIS331 chip");
 #endif
     while (1) {
       delay(10);
     } // while
   }
+  
 #ifdef SERIAL_DEBUG
-  Serial.println("BNO08x Found!");
+  Serial.println("LIS331 Found!");
 #endif
-  setReports(); // Chose what data we want to recieve from IMU
+  lis.setRange(H3LIS331_RANGE_100_G); // 100G range
+  lis.setDataRate(LIS331_DATARATE_50_HZ); // 50Hz update rate
+
+  // seup BMP pressure sensor
   if (!bmp.begin_I2C()) {   // hardware I2C mode, can pass in address & alt Wire
 #ifdef SERIAL_DEBUG
     Serial.println("Could not find a valid BMP3 sensor, check wiring!");
@@ -121,248 +111,36 @@ void setup() {
 #ifdef SERIAL_DEBUG
   printCSVHeader(Serial);
 #endif
-  if(dataLogFile) {
+  if (dataLogFile) {
     printCSVHeader(dataLogFile);
     digitalWrite(GREEN_LED_PORT, HIGH); // indicate we're writing data
   }
 }
 
-// Here is where you define the sensor outputs you want to receive
-void setReports(void) {
-#ifdef SERIAL_DEBUG
-  Serial.println("Setting desired reports");
-#endif
-  if (!bno08x.enableReport(SH2_ACCELEROMETER)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable accelerometer");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable gyroscope");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable magnetic field calibrated");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_LINEAR_ACCELERATION)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable linear acceleration");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_GRAVITY)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable gravity vector");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_ROTATION_VECTOR)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable rotation vector");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_GEOMAGNETIC_ROTATION_VECTOR)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable geomagnetic rotation vector");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_GAME_ROTATION_VECTOR)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable game rotation vector");
-#endif
-  }
-  // if (!bno08x.enableReport(SH2_STABILITY_CLASSIFIER)) {
-#ifdef SERIAL_DEBUG
-  //  Serial.println("Could not enable stability classifier");
-#endif
-  // }
-  if (!bno08x.enableReport(SH2_RAW_ACCELEROMETER)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable raw accelerometer");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_RAW_GYROSCOPE)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable raw gyroscope");
-#endif
-  }
-  if (!bno08x.enableReport(SH2_RAW_MAGNETOMETER)) {
-#ifdef SERIAL_DEBUG
-    Serial.println("Could not enable raw magnetometer");
-#endif
-  }
+
+void printCSVHeader (Stream& outputFile) {
+  outputFile.print("Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ,");
+  outputFile.println(""); // new line
 }
 
-void printCSVHeader (Stream& outputFile){
-  outputFile.print("Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ, GyroX, GyroY, GyroZ, MagX, MagY, MagZ, LAccX, LAccY, LAccZ, GravX, GravY, GravZ, RotTheta, RotI, RotJ, RotK, GeoRotTheta, GeoRotI, GeoRotJ, GeoRotK, GameRotTheta, GameRotI, GameRotJ, GameRotK");
-}
-
-void reportIMU(Stream& outputFile){
-    outputFile.print(AccelX);
-    outputFile.print(", ");
-    outputFile.print(AccelY);
-    outputFile.print(", ");
-    outputFile.print(AccelZ);
-    outputFile.print(", ");
-    outputFile.print(GyroX);
-    outputFile.print(", ");
-    outputFile.print(GyroY);
-    outputFile.print(", ");
-    outputFile.print(GyroZ);
-    outputFile.print(", ");
-    outputFile.print(MagX);
-    outputFile.print(", ");
-    outputFile.print(MagY);
-    outputFile.print(", ");
-    outputFile.print(MagZ);
-    outputFile.print(", ");
-    outputFile.print(LAccX);
-    outputFile.print(", ");
-    outputFile.print(LAccY);
-    outputFile.print(", ");
-    outputFile.print(LAccZ);
-    outputFile.print(", ");
-    outputFile.print(GravX);
-    outputFile.print(", ");
-    outputFile.print(GravY);
-    outputFile.print(", ");
-    outputFile.print(GravZ);
-    outputFile.print(", ");
-    outputFile.print(RotTheta);
-    outputFile.print(", ");
-    outputFile.print(RotI);
-    outputFile.print(", ");
-    outputFile.print(RotJ);
-    outputFile.print(", ");
-    outputFile.print(RotK);
-    outputFile.print(", ");
-    outputFile.print(GeoRotTheta);
-    outputFile.print(", ");
-    outputFile.print(GeoRotI);
-    outputFile.print(", ");
-    outputFile.print(GeoRotJ);
-    outputFile.print(", ");
-    outputFile.print(GeoRotK);
-    outputFile.print(", ");
-    outputFile.print(GameRotTheta);
-    outputFile.print(", ");
-    outputFile.print(GameRotI);
-    outputFile.print(", ");
-    outputFile.print(GameRotJ);
-    outputFile.print(", ");
-    outputFile.print(GameRotK);
-    outputFile.print(", ");
+void reportIMU(Stream& outputFile) {
+  outputFile.print(AccelX);
+  outputFile.print(", ");
+  outputFile.print(AccelY);
+  outputFile.print(", ");
+  outputFile.print(AccelZ);
+  outputFile.print(", ");
 }
 
 void readIMU(void) {
 
-  if (bno08x.wasReset()) {
-#ifdef SERIAL_DEBUG
-    //Serial.print("sensor was reset ");
-#endif
-    setReports();
-  }
+  sensors_event_t event;
+  lis.getEvent(&event);
+  
+  AccelX = event.acceleration.x;
+  AccelY = event.acceleration.y;
+  AccelZ = event.acceleration.z;
 
-  if (!bno08x.getSensorEvent(&sensorValue)) {
-    return;
-  }
-
-// GameRotTheta, GameRotI, GameRotJ, GameRotK 
-  switch (sensorValue.sensorId) {
-
-  case SH2_ACCELEROMETER:
-    AccelX = sensorValue.un.accelerometer.x;
-    AccelY = sensorValue.un.accelerometer.y;
-    AccelZ = sensorValue.un.accelerometer.z;
-    break;
-  case SH2_GYROSCOPE_CALIBRATED:
-    GyroX = sensorValue.un.gyroscope.x;
-    GyroY = sensorValue.un.gyroscope.y;
-    GyroZ = sensorValue.un.gyroscope.z;
-    break;
-  case SH2_MAGNETIC_FIELD_CALIBRATED:
-    MagX = sensorValue.un.magneticField.x;
-    MagY = sensorValue.un.magneticField.y;
-    MagZ = sensorValue.un.magneticField.z;
-    break;
-  case SH2_LINEAR_ACCELERATION:
-    LAccX = sensorValue.un.linearAcceleration.x;
-    LAccY = sensorValue.un.linearAcceleration.y;
-    LAccZ = sensorValue.un.linearAcceleration.z;
-    break;
-  case SH2_GRAVITY:
-    GravX = sensorValue.un.gravity.x;
-    GravY = sensorValue.un.gravity.y;
-    GravZ = sensorValue.un.gravity.z;
-    break;
-  case SH2_ROTATION_VECTOR:
-    RotTheta = sensorValue.un.rotationVector.real;
-    RotI = sensorValue.un.rotationVector.i;
-    RotJ = sensorValue.un.rotationVector.j;
-    RotK = sensorValue.un.rotationVector.k;
-    break;
-  case SH2_GEOMAGNETIC_ROTATION_VECTOR:
-    GeoRotTheta = sensorValue.un.geoMagRotationVector.real;
-    GeoRotI = sensorValue.un.geoMagRotationVector.i;
-    GeoRotJ = sensorValue.un.geoMagRotationVector.j;
-    GeoRotK = sensorValue.un.geoMagRotationVector.k;
-    break;
-  case SH2_GAME_ROTATION_VECTOR:
-    GameRotTheta = sensorValue.un.gameRotationVector.real;
-    GameRotI = sensorValue.un.gameRotationVector.i;
-    GameRotJ = sensorValue.un.gameRotationVector.j;
-    GameRotK = sensorValue.un.gameRotationVector.k;
-    break;
-
-//  case SH2_STABILITY_CLASSIFIER: {
-//    Serial.print("Stability Classification: ");
-//    sh2_StabilityClassifier_t stability = sensorValue.un.stabilityClassifier;
-//    switch (stability.classification) {
-//    case STABILITY_CLASSIFIER_UNKNOWN:
-//      Serial.println("Unknown");
-//      break;
-//    case STABILITY_CLASSIFIER_ON_TABLE:
-//      Serial.println("On Table");
-//      break;
-//    case STABILITY_CLASSIFIER_STATIONARY:
-//      Serial.println("Stationary");
-//      break;
-//    case STABILITY_CLASSIFIER_STABLE:
-//      Serial.println("Stable");
-//      break;
-//    case STABILITY_CLASSIFIER_MOTION:
-//      Serial.println("In Motion");
-//      break;
-//    }
-//    break;
-//  }
-//
-//  case SH2_RAW_ACCELEROMETER:
-//    Serial.print("Raw Accelerometer - x: ");
-//    Serial.print(sensorValue.un.rawAccelerometer.x);
-//    Serial.print(" y: ");
-//    Serial.print(sensorValue.un.rawAccelerometer.y);
-//    Serial.print(" z: ");
-//    Serial.println(sensorValue.un.rawAccelerometer.z);
-//    break;
-//  case SH2_RAW_GYROSCOPE:
-//    Serial.print("Raw Gyro - x: ");
-//    Serial.print(sensorValue.un.rawGyroscope.x);
-//    Serial.print(" y: ");
-//    Serial.print(sensorValue.un.rawGyroscope.y);
-//    Serial.print(" z: ");
-//    Serial.println(sensorValue.un.rawGyroscope.z);
-//    break;
-//  case SH2_RAW_MAGNETOMETER:
-//    Serial.print("Raw Magnetic Field - x: ");
-//    Serial.print(sensorValue.un.rawMagnetometer.x);
-//    Serial.print(" y: ");
-//    Serial.print(sensorValue.un.rawMagnetometer.y);
-//    Serial.print(" z: ");
-//    Serial.println(sensorValue.un.rawMagnetometer.z);
-//    break;
-  }
 }
 
 void readAndReportTime(Stream& outputFile) {
@@ -371,7 +149,7 @@ void readAndReportTime(Stream& outputFile) {
   outputFile.print(", ");
 }
 
-void reportBMP(Stream&outputFile){
+void reportBMP(Stream&outputFile) {
   // Raw Pressure reading
   outputFile.print(Baro);
   outputFile.print(", ");
@@ -398,8 +176,8 @@ void reportBMP(Stream&outputFile){
 
 }
 
-void readBMP(void){
-    if (! bmp.performReading()) {
+void readBMP(void) {
+  if (! bmp.performReading()) {
 #ifdef SERIAL_DEBUG
     Serial.println("Failed to perform reading.");
 #endif
@@ -415,7 +193,7 @@ void readBMP(void){
   TempC = bmp.temperature;
 
   // Farenheit
-  TempF = ( bmp.temperature * 9/5) + 32;
+  TempF = ( bmp.temperature * 9 / 5) + 32;
 
   AltiM = bmp.readAltitude(SEALEVELPRESSURE_HPA);
 
@@ -427,13 +205,13 @@ void loop() {
   readIMU();
 
   // print a CSV row to file
-  if(dataLogFile) {
+  if (dataLogFile) {
     readAndReportTime(dataLogFile);
     reportBMP(dataLogFile);
     reportIMU(dataLogFile);
     dataLogFile.println(""); // new line
   }
-  
+
 #ifdef SERIAL_DEBUG
   // print a CSV row to Serial
   readAndReportTime(Serial);
@@ -444,12 +222,12 @@ void loop() {
 
   // is it time to flush the writes to the SD card yet?
   unsigned long nowMillis = millis();
-  if(nowMillis > lastFlushTimeMilliseconds + flushRateMilliseconds) {
+  if (nowMillis > lastFlushTimeMilliseconds + flushRateMilliseconds) {
     digitalWrite(RED_LED_PORT, HIGH);
     dataLogFile.flush();
     digitalWrite(RED_LED_PORT, LOW);
     lastFlushTimeMilliseconds = nowMillis;
   }
-  
+
   delay(20); // 50Hz
 }
