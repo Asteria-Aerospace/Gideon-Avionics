@@ -41,17 +41,20 @@ void setup()
   rf95.setPreambleLength(8);
   //rf95.setPayloadCRC(true);
   rf95.spiWrite(RH_RF95_REG_39_SYNC_WORD,0x12); // set RFM SyncWord 0x12
-  rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128); // Sf128 = sf7, should be the default already, but we may change it later
+  rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096); // Sf4096 = sf12
 
 
 
 }
 
+uint8_t counter(0);
+
 void loop()
 {
   //Serial.println("Sending to rf95_server");
-  // Send a message to rf95_server
-  uint8_t data[] = "ABCDEFG";
+  // Send a message
+  uint8_t data[] = "0";
+  data[0] = counter++;
     digitalWrite(13, HIGH);   // turn the RED LED on (HIGH is the voltage level) 
 
   rf95.send(data, sizeof(data));
