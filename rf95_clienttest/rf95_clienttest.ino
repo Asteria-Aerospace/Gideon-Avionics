@@ -11,19 +11,19 @@ const int irqPin = 3;         // change for your board; must be a hardware inter
 void setup() 
 {
     pinMode(13, OUTPUT);
-  Serial.begin(9600);
-  while (!Serial);
+//  Serial.begin(9600);
+//  while (!Serial);
 
-  Serial.println("LoRa Sender");
+//  Serial.println("LoRa Sender");
 
   LoRa.setPins(csPin, resetPin, irqPin);// set CS, reset, IRQ pin
 
   if (!LoRa.begin(915E6)) {
-    Serial.println("Starting LoRa failed!");
+//    Serial.println("Starting LoRa failed!");
     while (1);
   }
 
-    Serial.println("LoRa begin successful");
+//    Serial.println("LoRa begin successful");
 
 
   LoRa.setSpreadingFactor(20); //
@@ -34,7 +34,7 @@ void setup()
   LoRa.setSyncWord(0x12);
   LoRa.enableCrc();
 
-    Serial.println("LoRa parameters set");
+//    Serial.println("LoRa parameters set");
 }
 
 uint8_t counter(0);
@@ -43,7 +43,7 @@ uint8_t counter(0);
 
 void loop()
 {
-    Serial.println("LoRa sending");
+//    Serial.println("LoRa sending");
   // Send a message
   LoRa.beginPacket();
   uint8_t data[] = "0";
@@ -51,7 +51,7 @@ void loop()
     digitalWrite(13, HIGH);   // turn the RED LED on (HIGH is the voltage level) 
 
   LoRa.endPacket();
-    Serial.println("LoRa sent");
+//    Serial.println("LoRa sent");
   
      digitalWrite(13, LOW);    // turn the RED LED off by making the voltage LOW
 
