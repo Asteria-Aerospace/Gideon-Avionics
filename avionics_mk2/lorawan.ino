@@ -36,7 +36,7 @@ void setupRadio(void)
   LoRa.setPreambleLength(8);
   LoRa.setSyncWord(0x12);
   LoRa.enableCrc();
-  LoRa.setTxPower(2); // these can go to 20, but only for 1% duty cycle
+  LoRa.setTxPower(19); // these can go to 20, but only for 1% duty cycle
 
 }
 
