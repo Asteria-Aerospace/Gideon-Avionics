@@ -3,7 +3,7 @@
 // enable this to stream telemetry data to serial/USB.
 // This is blocking and will stall operations if no USB/serial
 // receiver is listening.
-#define SERIAL_DEBUG 0
+#define SERIAL_DEBUG 1
 
 //#define ENABLE_INS
 //#define ENABLE_BMP
@@ -30,7 +30,7 @@ void setup() {
   Serial.begin(115200); // set up serial port for debugging
   delay(10000); // don't spinlock waiting for serial in case it's not connected
   //while (!Serial);  // wait for serial access object to be ready
-  Serial.println("AsteriaAerospace.com 'Gideon Mk 2' Avionics Data Logger");
+  //Serial.println("AsteriaAerospace.com 'Gideon Mk 2' Avionics Data Logger");
 #endif
 
   // Set LED pins to output for debugging/status
@@ -40,6 +40,11 @@ void setup() {
   // Turn both LEDs off to start
   digitalWrite(GREEN_LED_PORT, LOW);
   digitalWrite(RED_LED_PORT, LOW);
+
+  // early radio setup
+  #ifdef ENABLE_RADIO
+  setupRadioearly();
+  #endif // ENABLE_RADIO
 
   // setup IMU/INS
   #ifdef ENABLE_INS
@@ -61,11 +66,6 @@ void setup() {
   setupGPS();
   #endif // ENABLE_GPS
 
-  // setup radio
-  #ifdef ENABLE_RADIO
-  setupRadio();
-  #endif // ENABLE_RADIO
-
 #ifdef SERIAL_DEBUG
   printCSVHeader(Serial);
 #endif
@@ -86,14 +86,34 @@ void readAndReportTime(Stream& outputFile) {
 }
 
 
+bool isRadioConfigured = false;
+
 void loop() {
+
+  #ifdef ENABLE_RADIO
+  if(!isRadioConfigured && isGPSFixAcquired())
+  { // turn on and configure radio, which interferes a bit with GPS fix acquisition
+    //Serial.println("Starting Radio"); // new line
+    setupRadio();
+    isRadioConfigured = true;
+    //Serial.println("Radio Started"); // new line
+  }
+  #endif // ENABLE_RADIO
+
+  unsigned char dataBuffer[11]; 
   #ifdef ENABLE_BMP
   loopBMPfirst();
   #endif // ENABLE_BMP
   #ifdef ENABLE_INS
   loopINSfirst();
   #endif // ENABLE_INS
-
+  #ifdef ENABLE_GPS
+  bool packetready = loopGPSfirst(dataBuffer);
+  #endif // ENABLE_GPS
+  #ifdef ENABLE_RADIO
+  loopRadiofirst();
+  #endif // ENABLE_RADIO
+  
   #ifdef ENABLE_SD
   // print a CSV row to file
   if (dataLogFile) {
@@ -108,20 +128,27 @@ void loop() {
   }
   #endif // ENABLE_SD
 
+
 #ifdef SERIAL_DEBUG
   // print a CSV row to Serial
-  readAndReportTime(Serial);
+  //readAndReportTime(Serial);
   #ifdef ENABLE_BMP
   reportBMP(Serial);
   #endif // ENABLE_BMP
   #ifdef ENABLE_INS
   reportIMU(Serial);
   #endif // ENABLE_INS
-  Serial.println(""); // new line
+  //Serial.println(""); // new line
 #endif
 
 #ifdef ENABLE_RADIO
-  loopRadiosecond();
+if(isGPSFixAcquired() && isRadioConfigured)
+{
+  if(packetready)
+    {
+    loopRadiosecond(dataBuffer);
+    } // if
+}
 #endif // ENABLE_RADIO
 
 
