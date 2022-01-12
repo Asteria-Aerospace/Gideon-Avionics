@@ -3,7 +3,7 @@
 // enable this to stream telemetry data to serial/USB.
 // This is blocking and will stall operations if no USB/serial
 // receiver is listening.
-#define SERIAL_DEBUG 1
+//#define SERIAL_DEBUG 1
 
 //#define ENABLE_INS
 //#define ENABLE_BMP
@@ -92,7 +92,7 @@ void loop() {
 
   #ifdef ENABLE_RADIO
   if(!isRadioConfigured && isGPSFixAcquired())
-  { // turn on and configure radio, which interferes a bit with GPS fix acquisition
+  { // turn on and configure radio
     //Serial.println("Starting Radio"); // new line
     setupRadio();
     isRadioConfigured = true;
@@ -109,6 +109,10 @@ void loop() {
   #endif // ENABLE_INS
   #ifdef ENABLE_GPS
   bool packetready = loopGPSfirst(dataBuffer);
+  if(isGPSFixAcquired())
+  {
+      digitalWrite(GREEN_LED_PORT, HIGH);   // turn the GREEN LED on to indicate GPS fix (HIGH is the voltage level) 
+  }
   #endif // ENABLE_GPS
   #ifdef ENABLE_RADIO
   loopRadiofirst();
