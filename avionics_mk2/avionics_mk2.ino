@@ -10,6 +10,9 @@
 //#define ENABLE_SD
 #define ENABLE_GPS
 #define ENABLE_RADIO
+// this boosts every 100th packet to power level 20
+#define USE_RADIO_BOOST
+#define ENABLE_BATTERY
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -19,8 +22,12 @@
 #define GREEN_LED_PORT 8
 #define RED_LED_PORT 13
 
+unsigned long int radioPacketCount = 0;
+
 // These variables accumulate the most current data as it arrives, for later reporting
 double Time, Baro, TempC, TempF, BaroCal, AltiM, AltiF, AccelX, AccelY, AccelZ;
+
+float batVoltage(0.0);
 
 
 // set up devices
@@ -90,8 +97,12 @@ bool isRadioConfigured = false;
 
 void loop() {
 
+  #ifdef ENABLE_BATTERY
+  batVoltage = checkBatteryVoltage();
+  #endif // ENABLE_BATTERY
+
   #ifdef ENABLE_RADIO
-  if(!isRadioConfigured && isGPSFixAcquired())
+  if(!isRadioConfigured)
   { // turn on and configure radio
     //Serial.println("Starting Radio"); // new line
     setupRadio();
@@ -108,7 +119,7 @@ void loop() {
   loopINSfirst();
   #endif // ENABLE_INS
   #ifdef ENABLE_GPS
-  bool packetready = loopGPSfirst(dataBuffer);
+  bool packetready = loopGPSfirst(dataBuffer, batVoltage);
   if(isGPSFixAcquired())
   {
       digitalWrite(GREEN_LED_PORT, HIGH);   // turn the GREEN LED on to indicate GPS fix (HIGH is the voltage level) 
@@ -146,15 +157,22 @@ void loop() {
 #endif
 
 #ifdef ENABLE_RADIO
-if(isGPSFixAcquired() && isRadioConfigured)
+if(isRadioConfigured)
 {
   if(packetready)
     {
-    loopRadiosecond(dataBuffer);
+      bool useBoost = false;
+      if(radioPacketCount % 100)
+      {
+        #ifdef USE_RADIO_BOOST
+        useBoost = true;
+        #endif // USE_RADIO_BOOST
+      }
+    loopRadiosecond(dataBuffer, useBoost);
+    radioPacketCount++;
+    //Serial.print("VBat: " ); Serial.println(batVoltage);
     } // if
 }
 #endif // ENABLE_RADIO
 
-
-  delay(20); // 50Hz
 }

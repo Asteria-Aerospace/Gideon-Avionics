@@ -28,7 +28,7 @@ void setupGPS()
   // For parsing data, we don't suggest using anything but either RMC only or RMC+GGA since
   // the parser doesn't care about other sentences at this time
   // Set the update rate
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_100_MILLIHERTZ); // 1 Hz update rate
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz update rate
   // For the parsing code to work nicely and have time to sort thru the data, and
   // print it out we don't suggest using anything higher than 1 Hz
 
@@ -37,9 +37,12 @@ void setupGPS()
 
   // Ask for firmware version
   //GPSSerial.println(PMTK_Q_RELEASE);
+
+  // optional, start logging at 1Hz
+  GPS.sendCommand("$PMTK,187,1,1*10");
 }
 
-bool loopGPSfirst(unsigned char dataBuffer[]) // called from main loop
+bool loopGPSfirst(unsigned char dataBuffer[], float batteryVoltage) // called from main loop
 {
   // read data from the GPS in the 'main loop'
   char c = GPS.read();
@@ -85,21 +88,23 @@ bool loopGPSfirst(unsigned char dataBuffer[]) // called from main loop
 
       //Serial.print("secondWithinDay: "); Serial.println((int)secondWithinDay);
 
-      dataBuffer[0]  = 0x01; // S1;
-      dataBuffer[1]  = 0x02; // S2;
-      dataBuffer[2]  = 0x03; // S3;
-      dataBuffer[3]  = 0x04; // X1;
-      dataBuffer[4]  = 0x05; // X2;
-      dataBuffer[5]  = 0x06; // X3;
-      dataBuffer[6]  = 0x07; // Y1;
-      dataBuffer[7]  = 0x08; // Y2;
-      dataBuffer[8]  = 0x09; // Y3;
-      dataBuffer[9]  = 0x0A; // A1;
-      dataBuffer[10] = 0x0B; // A2;
+      dataBuffer[0]  = 0x00; // S1;
+      dataBuffer[1]  = 0x00; // S2;
+      dataBuffer[2]  = 0x00; // S3;
+      dataBuffer[3]  = 0x00; // X1;
+      dataBuffer[4]  = 0x00; // X2;
+      dataBuffer[5]  = 0x00; // X3;
+      dataBuffer[6]  = 0x00; // Y1;
+      dataBuffer[7]  = 0x00; // Y2;
+      dataBuffer[8]  = 0x00; // Y3;
+      dataBuffer[9]  = 0x00; // A1;
+      dataBuffer[10] = 0x00; // A2;
       
-
-      if (GPS.fix && GPS.altitude != 0) {
+      if (GPS.fix) {
         gpsFixAcquired = true;
+      }
+
+      if (1) {
         
         // assemble 11 byte packet
         //012 345 678 90
@@ -110,9 +115,36 @@ bool loopGPSfirst(unsigned char dataBuffer[]) // called from main loop
         // copy time
         unsigned char S1, S2, S3;
 
+        // we have upper 7 bits still available in S1 for status
+//        Serial.println("---");
+//        Serial.println(secondWithinDay);
+
         S1 = ((secondWithinDay & 0x00FF0000) >> 16);
         S2 = ((secondWithinDay & 0x0000FF00) >> 8); 
         S3 = ((secondWithinDay & 0x000000FF) >> 0); 
+
+//        Serial.println(S1, HEX);
+//        Serial.println(S2, HEX);
+//        Serial.println(S3, HEX);
+
+        // add status bits
+        if(GPS.fix)
+        {
+          S1 |= 0x80;
+        }
+
+        // add voltage status
+        //Serial.print("batteryVoltage: "); Serial.println(batteryVoltage);
+        float batFraction = max(0.0, min(1.0, (min(batteryVoltage, 4.2) - 3.2))); // 1.0 wide range of 3.2-4.2v
+        // 6 bits to represent 64 steps of 0.015625v each between 3.2 and 4.2v
+        unsigned char batSteps = (unsigned char)((63) * batFraction);
+        unsigned char batStatus6bits = (batSteps) << 1; // shifted left one for transmission in status byte
+        //Serial.print("batFraction: "); Serial.println(batFraction);
+        S1 |= batStatus6bits;
+
+        //Serial.print("batSteps: "); Serial.println(batSteps, HEX);
+        //Serial.print("batStatus6bits: "); Serial.println(batStatus6bits, HEX);
+        
 
         // copy x
         unsigned char X1, X2, X3;
@@ -153,7 +185,7 @@ bool loopGPSfirst(unsigned char dataBuffer[]) // called from main loop
         dataBuffer[10] = A2;
 
         return(true); // packet ready
-      } // if fix and altitude valid
+      } // if (1)
 
     } // if parsed
     return(false); // nothing to do

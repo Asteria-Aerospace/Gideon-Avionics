@@ -38,7 +38,7 @@ void startSD(void)
 {
     if (dataLogFile) {
     printCSVHeader(dataLogFile);
-    digitalWrite(GREEN_LED_PORT, HIGH); // indicate we're writing data
+    //digitalWrite(GREEN_LED_PORT, HIGH); // indicate we're writing data
   }
 }
 
@@ -52,9 +52,9 @@ void loopSDsecond(void)
 {
     // is it time to flush the writes to the SD card yet?
   if (nowMillis > lastFlushTimeMilliseconds + flushRateMilliseconds) {
-    digitalWrite(RED_LED_PORT, HIGH);
+    //digitalWrite(RED_LED_PORT, HIGH);
     dataLogFile.flush();
-    digitalWrite(RED_LED_PORT, LOW);
+    //digitalWrite(RED_LED_PORT, LOW);
     lastFlushTimeMilliseconds = nowMillis;
   }
 

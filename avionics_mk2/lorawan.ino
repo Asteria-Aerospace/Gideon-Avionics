@@ -11,9 +11,23 @@ const int resetPin = 4;       // LoRa radio reset
 const int irqPin = 3;         // change for your board; must be a hardware interrupt pin
 const int ledPin = 13;
 
+// https://mylorawan.blogspot.com/2016/05/spread-factor-vs-payload-size-on-lora.html
+// In essence, longer range is possible in Europe because of a higher permissible spreading factor. However, data throughput is generally higher in North America because of Europe’s duty cycle restriction, but keep in mind that using the highest spreading factor for North America (10) limits payload size to 11 bytes. Whereas in Europe the payload can be 51 bytes at the highest spreading factor (12).
+// ISM Band 902-928 MHz
+// TX Restriction 400ms tx time
+// Payload sizes 11 – 242 bytes
+// Spreading factors 7 – 10
+// Data rates 1 – 12.5 kbps
+// Max transmit power 21 dBm
+// SF_10 125kHz 0.98 kbps 11 bytes
+
+// https://medium.com/home-wireless/testing-lora-radios-with-the-limesdr-mini-part-2-37fa481217ff
+
 // format of 11 byte data packet time, x, y, altitude
 //12345678901
-//tttxxxyyyaa
+//STTXXXYYYAA
+
+// S is composed of gps fix bit, 6 bits of battery level, one bit of time MSB
 
 void setupRadioearly(void)
 {
@@ -47,9 +61,14 @@ void loopRadiofirst(void)
   // nothing to do here
 }
 
-void loopRadiosecond(unsigned char dataBuffer[])
+void loopRadiosecond(unsigned char dataBuffer[], bool boost)
 {
       //Serial.println("Starting send"); // new line
+
+if(boost)
+{
+  LoRa.setTxPower(20); // these can go to 20, but only for 1% duty cycle
+}
 
   #ifdef RADIO_PULSE_LED_TRANSMIT
   digitalWrite(ledPin, HIGH);   // turn the RED LED on (HIGH is the voltage level) 
@@ -59,10 +78,15 @@ void loopRadiosecond(unsigned char dataBuffer[])
   //LoRa.write(radioPacketCounter++);
   LoRa.write(&dataBuffer[0], 11);
 
-  LoRa.endPacket(true);
+  LoRa.endPacket(boost ? false : true); // wait for completion of boosted packets
   #ifdef RADIO_PULSE_LED_TRANSMIT
   digitalWrite(ledPin, LOW);    // turn the RED LED off by making the voltage LOW
   #endif // RADIO_PULSE_LED_TRANSMIT
+
+if(boost)
+{
+  LoRa.setTxPower(19); // step back down to 19
+}
 
       //Serial.println("Sent"); // new line
 
